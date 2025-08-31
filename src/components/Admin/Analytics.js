@@ -48,21 +48,38 @@ const Analytics = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
+      
+      if (!token) {
+        console.error('No authentication token found');
+        throw new Error('Authentication required');
+      }
+      
       const config = {
         headers: { Authorization: `Bearer ${token}` }
       };
 
+      console.log('Fetching analytics data with token:', token ? 'Token exists' : 'No token');
+
       const [dashboardRes, userRes, performanceRes] = await Promise.all([
-        axios.get('/api/analytics/dashboard', config),
-        axios.get('/api/analytics/user-analytics', config),
-        axios.get('/api/analytics/poll-performance', config)
+        axios.get('analytics/dashboard', config),
+        axios.get('analytics/user-analytics', config),
+        axios.get('analytics/poll-performance', config)
       ]);
+
+      console.log('Analytics data fetched successfully:', {
+        dashboard: dashboardRes.data,
+        users: userRes.data,
+        performance: performanceRes.data
+      });
 
       setAnalyticsData(dashboardRes.data);
       setUserAnalytics(userRes.data);
       setPollPerformance(performanceRes.data);
     } catch (error) {
       console.error('Failed to fetch analytics:', error);
+      console.error('Error details:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      console.error('Token exists:', !!localStorage.getItem('token'));
       // Set default empty data on error
       setAnalyticsData({
         overview: { totalPolls: 0, totalVotes: 0, totalUsers: 0, activePolls: 0, completionRate: 0 },
