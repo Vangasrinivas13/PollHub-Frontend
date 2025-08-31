@@ -13,7 +13,13 @@ export const useAuth = () => {
 };
 
 // Configure axios defaults
-axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const isProduction = process.env.NODE_ENV === 'production';
+const apiUrl = isProduction 
+  ? 'https://pollhub-backend-production.up.railway.app/api' 
+  : 'http://localhost:5000/api';
+
+console.log('Using API URL:', apiUrl);
+axios.defaults.baseURL = apiUrl;
 
 // Request interceptor to add auth token
 axios.interceptors.request.use(
