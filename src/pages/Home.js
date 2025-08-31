@@ -6,7 +6,7 @@ import { Vote, Users, BarChart3, Shield, Clock, Award, Calendar, Timer } from 'l
 import Button from '../components/UI/Button';
 import Card from '../components/UI/Card';
 import axios from 'axios';
-import { formatDistanceToNow, format } from 'date-fns';
+import { format } from 'date-fns';
 
 const Home = () => {
   const { user } = useAuth();

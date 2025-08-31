@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from 'react-query';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Clock, Vote, BarChart3, Filter, Calendar, TrendingUp, Award, Target } from 'lucide-react';
+import { Clock, Vote, BarChart3, Filter, Calendar, TrendingUp, Target } from 'lucide-react';
 import axios from 'axios';
 import Card from '../components/UI/Card';
 import Button from '../components/UI/Button';
