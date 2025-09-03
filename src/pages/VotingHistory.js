@@ -258,15 +258,14 @@ const VotingHistory = () => {
                             <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg p-3 mb-3">
                               <div className="flex items-center text-indigo-700">
                                 <Vote className="h-4 w-4 mr-2" />
-                                <span className="font-semibold">Your vote: </span>
-                                <span className="font-bold">{vote.optionText}</span>
+                                <span className="font-semibold">You participated in this poll</span>
                               </div>
                             </div>
                             
                             <div className="flex items-center space-x-4 text-sm">
                               <div className="flex items-center text-gray-600">
                                 <Clock className="h-4 w-4 mr-1" />
-                                {formatDistanceToNow(new Date(vote.votedAt), { addSuffix: true })}
+                                Participated {formatDistanceToNow(new Date(vote.votedAt), { addSuffix: true })}
                               </div>
                               {vote.poll.endDate && (
                                 <div className="flex items-center text-gray-600">

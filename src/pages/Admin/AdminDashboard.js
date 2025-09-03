@@ -21,10 +21,19 @@ const AdminDashboard = () => {
   
   const { data: dashboardData, isLoading, refetch } = useQuery(
     'adminDashboard',
-    () => axios.get('/admin/dashboard').then(res => res.data),
+    async () => {
+      console.log('Fetching admin dashboard data...');
+      const response = await axios.get('/admin/dashboard');
+      console.log('Admin dashboard response:', response.data);
+      return response.data;
+    },
     {
       refetchInterval: 30000, // Refresh every 30 seconds for real-time updates
-      refetchOnWindowFocus: true
+      refetchOnWindowFocus: true,
+      onError: (error) => {
+        console.error('Admin dashboard fetch error:', error);
+        console.error('Error response:', error.response?.data);
+      }
     }
   );
 
@@ -38,21 +47,19 @@ const AdminDashboard = () => {
   );
 
   // Delete poll mutation
-  const deletePollMutation = useMutation(
-    (pollId) => axios.delete(`/admin/polls/${pollId}`),
-    {
-      onSuccess: (data, pollId) => {
-        toast.success('Poll deleted successfully');
-        queryClient.invalidateQueries('adminDashboard');
-        queryClient.invalidateQueries('adminRealtimeStats');
-        queryClient.removeQueries(['poll', pollId]);
-        setPollToDelete(null);
-      },
-      onError: (error) => {
-        toast.error(error.response?.data?.message || 'Failed to delete poll');
-      }
+  const deletePollMutation = useMutation({
+    mutationFn: (pollId) => axios.delete(`/admin/polls/${pollId}`),
+    onSuccess: (data, pollId) => {
+      toast.success('Poll deleted successfully');
+      queryClient.invalidateQueries('adminDashboard');
+      queryClient.invalidateQueries('adminRealtimeStats');
+      queryClient.removeQueries(['poll', pollId]);
+      setPollToDelete(null);
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Failed to delete poll');
     }
-  );
+  });
 
   const handleDeletePoll = (poll) => {
     setPollToDelete(poll);
@@ -74,6 +81,11 @@ const AdminDashboard = () => {
 
   const stats = dashboardData?.statistics;
   const currentStats = realtimeStats || stats;
+  
+  // Debug logging
+  console.log('Dashboard data:', dashboardData);
+  console.log('Statistics:', stats);
+  console.log('Current stats:', currentStats);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
@@ -120,65 +132,7 @@ const AdminDashboard = () => {
         </div>
 
         {/* Management Control Panel */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          {/* Quick Actions */}
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
-            <h3 className="text-xl font-bold text-white mb-4 flex items-center">
-              <Settings className="h-6 w-6 mr-2" />
-              Quick Actions
-            </h3>
-            <div className="space-y-3">
-              <Link to="/admin/create-poll">
-                <button className="w-full bg-gradient-to-r from-blue-500 to-purple-500 text-white p-3 rounded-xl hover:from-blue-600 hover:to-purple-600 transition-all flex items-center">
-                  <Plus className="h-5 w-5 mr-2" />
-                  Create New Poll
-                </button>
-              </Link>
-              <Link to="/admin/users">
-                <button className="w-full bg-gradient-to-r from-green-500 to-teal-500 text-white p-3 rounded-xl hover:from-green-600 hover:to-teal-600 transition-all flex items-center">
-                  <Users className="h-5 w-5 mr-2" />
-                  Manage Users
-                </button>
-              </Link>
-              <button className="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white p-3 rounded-xl hover:from-orange-600 hover:to-red-600 transition-all flex items-center">
-                <Download className="h-5 w-5 mr-2" />
-                Export Reports
-              </button>
-            </div>
-          </div>
-
-          {/* System Alerts */}
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
-            <h3 className="text-xl font-bold text-white mb-4 flex items-center">
-              <AlertTriangle className="h-6 w-6 mr-2" />
-              System Alerts
-            </h3>
-            <div className="space-y-3">
-              <div className="bg-green-500/20 border border-green-400/30 rounded-lg p-3">
-                <p className="text-green-300 text-sm">All systems operational</p>
-                <p className="text-green-200 text-xs">Last check: {new Date().toLocaleTimeString()}</p>
-              </div>
-              <div className="bg-blue-500/20 border border-blue-400/30 rounded-lg p-3">
-                <p className="text-blue-300 text-sm">Database sync active</p>
-                <p className="text-blue-200 text-xs">Real-time updates enabled</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Recent Activity */}
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
-            <h3 className="text-xl font-bold text-white mb-4 flex items-center">
-              <Clock className="h-6 w-6 mr-2" />
-              Recent Activity
-            </h3>
-            <div className="space-y-2 text-sm">
-              <div className="text-purple-200">New user registered</div>
-              <div className="text-blue-200">Poll created: "Best Feature"</div>
-              <div className="text-green-200">15 votes cast in last hour</div>
-              <div className="text-yellow-200">System backup completed</div>
-            </div>
-          </div>
-        </div>
+        
 
         {/* Advanced Analytics Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -199,7 +153,7 @@ const AdminDashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-blue-100 text-sm font-medium">Total Users</p>
-                <p className="text-3xl font-bold mt-1">{currentStats?.users?.totalUsers || 0}</p>
+                <p className="text-3xl font-bold mt-1">{stats?.users?.totalUsers || currentStats?.users?.totalUsers || 0}</p>
                 <p className="text-blue-200 text-xs mt-1">
                   {realtimeStats && realtimeStats.counters?.activeUsers ? 
                     `${realtimeStats.counters.activeUsers} active` : 'Loading...'}
@@ -214,9 +168,9 @@ const AdminDashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-purple-100 text-sm font-medium">Active Polls</p>
-                <p className="text-3xl font-bold mt-1">{currentStats?.polls?.activePolls || 0}</p>
+                <p className="text-3xl font-bold mt-1">{stats?.polls?.activePolls || currentStats?.polls?.activePolls || 0}</p>
                 <p className="text-purple-200 text-xs mt-1">
-                  {currentStats?.polls?.totalPolls || 0} total created
+                  {stats?.polls?.totalPolls || currentStats?.polls?.totalPolls || 0} total created
                 </p>
               </div>
               <Database className="h-10 w-10 text-purple-200" />
@@ -228,7 +182,7 @@ const AdminDashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-orange-100 text-sm font-medium">Total Votes</p>
-                <p className="text-3xl font-bold mt-1">{currentStats?.polls?.totalVotes || 0}</p>
+                <p className="text-3xl font-bold mt-1">{stats?.polls?.totalVotes || currentStats?.polls?.totalVotes || stats?.engagement?.totalVotes || 0}</p>
                 <p className="text-orange-200 text-xs mt-1">
                   {realtimeStats?.counters?.votesLast24h || 0} in 24h
                 </p>

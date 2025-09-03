@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { useAuth } from '../../contexts/AuthContext';
-import { BarChart3, Share2, Flag, ArrowLeft } from 'lucide-react';
+import { Share2, Flag, ArrowLeft } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import Card from '../../components/UI/Card';
@@ -20,9 +20,20 @@ const PollDetail = () => {
 
   const { data: pollData, isLoading } = useQuery(
     ['poll', id],
-    () => axios.get(`/polls/${id}`).then(res => res.data),
+    () => axios.get(`/polls/${id}`, { 
+      params: { 
+        includeVoters: true 
+      } 
+    }).then(res => res.data),
     {
-      enabled: !!id
+      enabled: !!id,
+      refetchOnWindowFocus: true,
+      onSuccess: (data) => {
+        // If user has already voted, show results if configured to do so
+        if (data?.poll?.hasUserVoted && data?.poll?.settings?.showResultsAfterVoting !== false) {
+          setShowResults(true);
+        }
+      }
     }
   );
 
@@ -34,18 +45,37 @@ const PollDetail = () => {
     }
   );
 
+  // Set initial selected option if user has already voted
+  useEffect(() => {
+    const poll = pollData?.poll;
+    const hasVoted = poll?.hasUserVoted || false;
+    const userVote = poll?.userVote;
+    
+    if (hasVoted && userVote?.optionIndex !== undefined && selectedOption === null) {
+      setSelectedOption(userVote.optionIndex);
+    }
+  }, [pollData?.poll, selectedOption]);
+
   const voteMutation = useMutation(
     (optionIndex) => axios.post(`/votes/${id}`, { optionIndex }),
     {
-      onSuccess: () => {
+      onSuccess: async () => {
         toast.success('Vote cast successfully!');
-        queryClient.invalidateQueries(['poll', id]);
-        queryClient.invalidateQueries(['pollResults', id]);
-        // Update dashboard data to reflect new vote
-        queryClient.invalidateQueries('userDashboard');
-        queryClient.invalidateQueries('userStats');
-        queryClient.invalidateQueries('activePolls');
-        setShowResults(true);
+        // Invalidate and refetch all related queries
+        await Promise.all([
+          queryClient.invalidateQueries(['poll', id]),
+          queryClient.invalidateQueries(['pollResults', id]),
+          queryClient.invalidateQueries('userDashboard'),
+          queryClient.invalidateQueries('userStats'),
+          queryClient.invalidateQueries('activePolls'),
+          queryClient.invalidateQueries('recentPolls')
+        ]);
+        
+        // Force show results if poll settings require it
+        const updatedPoll = await queryClient.getQueryData(['poll', id]);
+        if (updatedPoll?.settings?.showResultsAfterVoting !== false) {
+          setShowResults(true);
+        }
       },
       onError: (error) => {
         toast.error(error.response?.data?.message || 'Failed to cast vote');
@@ -53,12 +83,32 @@ const PollDetail = () => {
     }
   );
 
-  const handleVote = () => {
+  const handleVote = async () => {
     if (selectedOption === null) {
       toast.error('Please select an option to vote');
       return;
     }
-    voteMutation.mutate(selectedOption);
+    
+    // Don't allow voting for the same option again unless multiple votes are allowed
+    if (hasVoted && userVote?.optionIndex === selectedOption && !allowsMultipleVotes) {
+      toast.error('You have already voted for this option');
+      return;
+    }
+    
+    try {
+      await voteMutation.mutateAsync(selectedOption);
+      
+      // Show success message
+      const optionText = poll.options[selectedOption]?.text || 'your selected option';
+      toast.success(`Successfully voted for: ${optionText}`);
+      
+      // Reset selection if multiple votes are not allowed
+      if (!allowsMultipleVotes) {
+        setSelectedOption(null);
+      }
+    } catch (error) {
+      // Error handling is done in the mutation's onError
+    }
   };
 
   const handleShare = async () => {
@@ -99,14 +149,25 @@ const PollDetail = () => {
 
   const poll = pollData.poll;
   const results = resultsData?.results;
-  const canVote = user && poll.canUserVote?.canVote;
-  const hasVoted = user && poll.hasUserVoted;
+  const isAdmin = user?.role === 'admin';
+  const canVote = user && poll.canUserVote?.canVote && !isAdmin;
+  const hasVoted = poll.hasUserVoted || false;
+  const userVote = poll.userVote;
   const maxVotesPerUser = poll.settings?.maxVotesPerUser || 1;
   const allowsMultipleVotes = maxVotesPerUser > 1;
   
-  // Only show results if user can't vote anymore or poll has ended
-  const shouldShowResults = showResults || poll.hasEnded || poll.showResultsBeforeEnd || 
-    (hasVoted && !allowsMultipleVotes) || (hasVoted && !canVote);
+  // Show results if:
+  // 1. User has already voted and multiple votes are not allowed
+  // 2. Poll has ended
+  // 3. Results are set to show before end
+  // 4. User has explicitly clicked to view results
+  // 5. Poll settings require showing results after voting
+  const shouldShowResults = 
+    showResults || 
+    poll.hasEnded || 
+    poll.showResultsBeforeEnd || 
+    (hasVoted && !allowsMultipleVotes) || 
+    (hasVoted && poll.settings?.showResultsAfterVoting !== false);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -199,16 +260,68 @@ const PollDetail = () => {
             <Card>
               <Card.Header>
                 <Card.Title>
-                  {shouldShowResults ? 'Poll Results' : 'Cast Your Vote'}
+                  {isAdmin
+                    ? 'Poll Overview'
+                    : hasVoted && !allowsMultipleVotes 
+                    ? 'Vote Submitted' 
+                    : shouldShowResults 
+                    ? 'Poll Results' 
+                    : 'Cast Your Vote'
+                  }
                 </Card.Title>
-                {!shouldShowResults && (
+                {!shouldShowResults && !hasVoted && !isAdmin && (
                   <Card.Description>
                     Select an option and click vote to participate
                   </Card.Description>
                 )}
               </Card.Header>
               <Card.Content>
-                {shouldShowResults && results ? (
+                {isAdmin ? (
+                  // Show Admin message - admins cannot vote
+                  <div className="text-center py-8">
+                    <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-center justify-center mb-2">
+                        <svg className="h-8 w-8 text-blue-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                        </svg>
+                        <h3 className="text-lg font-medium text-blue-800">Admin Access</h3>
+                      </div>
+                      <p className="text-sm text-blue-700">
+                        As an administrator, you cannot vote on polls. You can view results and manage polls.
+                      </p>
+                    </div>
+                    
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowResults(true)}
+                      className="w-full"
+                    >
+                      View Poll Results
+                    </Button>
+                  </div>
+                ) : hasVoted && !allowsMultipleVotes ? (
+                  // Show "Already Voted" message for users who have voted (and multiple votes not allowed)
+                  <div className="text-center py-8">
+                    <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-center justify-center mb-2">
+                        <svg className="h-8 w-8 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        <h3 className="text-lg font-medium text-green-800">You have already voted!</h3>
+                      </div>
+                    </div>
+                    
+                    {(poll.showResultsBeforeEnd || poll.hasEnded || poll.settings?.showResultsAfterVoting !== false) && (
+                      <Button
+                        variant="outline"
+                        onClick={() => setShowResults(true)}
+                        className="w-full"
+                      >
+                        View Poll Results
+                      </Button>
+                    )}
+                  </div>
+                ) : shouldShowResults && results ? (
                   // Show Results
                   <div className="space-y-4">
                     {results.results.map((option, index) => (
@@ -242,82 +355,163 @@ const PollDetail = () => {
                 ) : (
                   // Show Voting Options
                   <div className="space-y-4">
-                    {poll.options.map((option, index) => (
-                      <div
-                        key={index}
-                        className={`border rounded-lg p-4 cursor-pointer transition-colors ${
-                          selectedOption === index
-                            ? 'border-primary-500 bg-primary-50'
-                            : 'border-gray-200 hover:border-gray-300'
-                        } ${!canVote ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        onClick={() => canVote && setSelectedOption(index)}
-                      >
-                        <div className="flex items-center">
-                          <input
-                            type="radio"
-                            name="poll-option"
-                            checked={selectedOption === index}
-                            onChange={() => canVote && setSelectedOption(index)}
-                            disabled={!canVote}
-                            className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300"
-                          />
-                          <label className="ml-3 text-gray-900 cursor-pointer">
-                            {option.text}
-                          </label>
+                    {poll.options.map((option, index) => {
+                      const isUserVote = hasVoted && userVote?.optionIndex === index;
+                      const optionVoteCount = option.votes || 0;
+                      
+                      return (
+                        <div
+                          key={index}
+                          className={`border rounded-lg p-4 transition-colors ${
+                            selectedOption === index
+                              ? 'border-primary-500 bg-primary-50'
+                              : isUserVote
+                              ? 'border-green-200 bg-green-50'
+                              : 'border-gray-200 hover:border-gray-300'
+                          } ${
+                            !canVote 
+                              ? 'opacity-75 cursor-not-allowed' 
+                              : 'cursor-pointer'
+                          }`}
+                          onClick={() => canVote && !isUserVote && setSelectedOption(index)}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center flex-1">
+                              <input
+                                type={allowsMultipleVotes ? 'checkbox' : 'radio'}
+                                name="poll-option"
+                                checked={selectedOption === index || isUserVote}
+                                onChange={() => canVote && !isUserVote && setSelectedOption(index)}
+                                disabled={!canVote || isUserVote}
+                                className={`h-4 w-4 ${
+                                  isUserVote 
+                                    ? 'text-green-600 focus:ring-green-500' 
+                                    : 'text-primary-600 focus:ring-primary-500'
+                                } border-gray-300`}
+                              />
+                              <label className={`ml-3 ${
+                                canVote && !isUserVote 
+                                  ? 'text-gray-900 cursor-pointer' 
+                                  : 'text-gray-700'
+                              }`}>
+                                {option.text}
+                                {isUserVote && (
+                                  <span className="ml-2 text-sm text-green-600 font-medium">
+                                    (Your Vote)
+                                  </span>
+                                )}
+                              </label>
+                            </div>
+                            
+                            {hasVoted && (
+                              <span className="text-sm text-gray-500">
+                                {optionVoteCount} {optionVoteCount === 1 ? 'vote' : 'votes'}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
 
                     {/* Vote Actions */}
                     <div className="pt-4 border-t">
-                      {user ? (
-                        canVote ? (
-                          <div>
-                            {allowsMultipleVotes && hasVoted && (
-                              <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                                <p className="text-sm text-blue-800">
-                                  <strong>Multiple votes allowed:</strong> You can vote up to {maxVotesPerUser} times.
-                                  {poll.canUserVote?.reason && ` ${poll.canUserVote.reason}`}
-                                </p>
-                              </div>
-                            )}
-                            <Button
-                              onClick={handleVote}
-                              loading={voteMutation.isLoading}
-                              disabled={selectedOption === null}
-                              className="w-full"
-                            >
-                              {hasVoted && allowsMultipleVotes ? 'Cast Another Vote' : 'Cast Vote'}
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="text-center">
-                            <p className="text-sm text-gray-600 mb-2">
-                              {poll.canUserVote?.reason || 'You cannot vote on this poll'}
-                            </p>
-                            {hasVoted && (
-                              <Button
-                                variant="outline"
-                                onClick={() => setShowResults(true)}
-                                className="w-full"
-                              >
-                                <BarChart3 className="h-4 w-4 mr-2" />
-                                View Results
-                              </Button>
-                            )}
-                          </div>
-                        )
-                      ) : (
+                      {!user ? (
                         <div className="text-center">
-                          <p className="text-sm text-gray-600 mb-4">
-                            You need to be logged in to vote
+                          <p className="text-sm text-gray-600 mb-3">
+                            Please sign in to vote on this poll
                           </p>
                           <Button
-                            onClick={() => navigate('/login')}
+                            onClick={() => navigate('/login', { state: { from: `/polls/${id}` } })}
                             className="w-full"
                           >
-                            Login to Vote
+                            Sign In to Vote
                           </Button>
+                          
+                          {poll.settings?.showResultsBeforeEnd && (
+                            <Button
+                              variant="outline"
+                              onClick={() => setShowResults(true)}
+                              className="w-full mt-2"
+                            >
+                              View Results
+                            </Button>
+                          )}
+                        </div>
+                      ) : !canVote ? (
+                        <div className="text-center">
+                          {hasVoted && userVote ? (
+                            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                              <p className="text-sm text-green-800">
+                                <span className="font-medium">You voted:</span> {userVote.optionText}
+                              </p>
+                              <p className="text-xs text-green-700 mt-1">
+                                Voted on {new Date(userVote.votedAt).toLocaleString()}
+                              </p>
+                            </div>
+                          ) : (
+                            <p className="text-sm text-gray-600 mb-3">
+                              {poll.canUserVote?.reason || 'You cannot vote on this poll'}
+                            </p>
+                          )}
+                          
+                          <Button
+                            variant="outline"
+                            onClick={() => setShowResults(!showResults)}
+                            className="w-full"
+                          >
+                            {showResults ? 'Hide Results' : 'View Results'}
+                          </Button>
+                        </div>
+                      ) : (
+                        <div>
+                          {allowsMultipleVotes && hasVoted && (
+                            <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                              <p className="text-sm text-blue-800">
+                                <strong>Multiple votes allowed:</strong> You can vote up to {maxVotesPerUser} times.
+                                {poll.canUserVote?.reason && ` ${poll.canUserVote.reason}`}
+                              </p>
+                            </div>
+                          )}
+                          
+                          {hasVoted && userVote && !allowsMultipleVotes && (
+                            <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                              <p className="text-sm text-green-800 flex items-center">
+                                <svg className="h-4 w-4 mr-2 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                                You voted for: <span className="font-medium ml-1">{userVote.optionText}</span>
+                              </p>
+                              {poll.settings?.showResultsAfterVoting !== false && (
+                                <p className="text-xs text-green-700 mt-1">
+                                  Results are visible after voting. You can change your vote until the poll ends.
+                                </p>
+                              )}
+                            </div>
+                          )}
+                          
+                          <Button
+                            onClick={handleVote}
+                            loading={voteMutation.isLoading}
+                            disabled={selectedOption === null || (hasVoted && selectedOption === userVote?.optionIndex)}
+                            className="w-full"
+                          >
+                            {(() => {
+                              if (voteMutation.isLoading) return 'Processing...';
+                              if (hasVoted && allowsMultipleVotes) return 'Cast Another Vote';
+                              if (hasVoted) return 'Change Vote';
+                              return 'Cast Vote';
+                            })()}
+                          </Button>
+                          
+                          {hasVoted && (
+                            <Button
+                              variant="outline"
+                              onClick={() => setShowResults(!showResults)}
+                              className="w-full mt-2"
+                            >
+                              {showResults ? 'Hide Results' : 'View Results'}
+                            </Button>
+                          )}
                         </div>
                       )}
                     </div>

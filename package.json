@@ -1,7 +1,7 @@
 {
-  "name": "pollhub-frontend",
+  "name": "online-voting-system",
   "version": "1.0.0",
-  "description": "Frontend for PollHub - Online Voting System",
+  "description": "Online Voting System - A modern platform for creating and participating in secure online polls and elections",
   "private": true,
   "dependencies": {
     "@testing-library/jest-dom": "^5.16.4",

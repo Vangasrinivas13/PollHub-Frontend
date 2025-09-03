@@ -15,7 +15,7 @@ export const useAuth = () => {
 // Configure axios defaults
 const isProduction = process.env.NODE_ENV === 'production';
 const apiUrl = isProduction 
-  ? 'https://pollhub-backend-production.up.railway.app/api' 
+  ? 'https://online-voting-system-backend.railway.app/api' 
   : 'http://localhost:5000/api';
 
 console.log('Using API URL:', apiUrl);
@@ -84,7 +84,7 @@ export const AuthProvider = ({ children }) => {
       setUser(userData);
 
       toast.success('Login successful!');
-      return { success: true };
+      return { success: true, user: userData };
     } catch (error) {
       const message = error.response?.data?.message || 'Login failed';
       toast.error(message);

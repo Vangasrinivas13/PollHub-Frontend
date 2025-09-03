@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { useAuth } from '../contexts/AuthContext';
-import { User, Edit3, Save, X } from 'lucide-react';
+import { User, Edit3, Save, X, Camera } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -16,6 +16,9 @@ const Profile = () => {
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [profileImage, setProfileImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const fileInputRef = useRef(null);
 
   const { data: profileData, isLoading } = useQuery(
     'userProfile',
@@ -93,8 +96,59 @@ const Profile = () => {
     }
   }, [profileData, resetProfile]);
 
-  const onProfileSubmit = (data) => {
-    updateProfileMutation.mutate(data);
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        toast.error('Image size must be less than 5MB');
+        return;
+      }
+      
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please select a valid image file');
+        return;
+      }
+
+      setProfileImage(file);
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const uploadImage = async (file) => {
+    const formData = new FormData();
+    formData.append('profilePicture', file);
+    
+    const response = await axios.post('/auth/upload-profile-picture', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    
+    return response.data.profilePicture;
+  };
+
+  const onProfileSubmit = async (data) => {
+    try {
+      let profilePictureUrl = data.profilePicture;
+      
+      // Upload image if selected
+      if (profileImage) {
+        profilePictureUrl = await uploadImage(profileImage);
+      }
+      
+      updateProfileMutation.mutate({
+        ...data,
+        profilePicture: profilePictureUrl
+      });
+    } catch (error) {
+      toast.error('Failed to upload profile picture');
+    }
   };
 
   const onPasswordSubmit = (data) => {
@@ -134,16 +188,34 @@ const Profile = () => {
               </Card.Header>
               <Card.Content>
                 <div className="text-center">
-                  <div className="w-24 h-24 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    {profile?.profilePicture ? (
-                      <img
-                        src={profile.profilePicture}
-                        alt={profile.name}
-                        className="w-24 h-24 rounded-full object-cover"
-                      />
-                    ) : (
-                      <User className="h-12 w-12 text-primary-600" />
+                  <div className="relative w-24 h-24 mx-auto mb-4">
+                    <div className="w-24 h-24 bg-primary-100 rounded-full flex items-center justify-center overflow-hidden">
+                      {imagePreview || profile?.profilePicture ? (
+                        <img
+                          src={imagePreview || profile.profilePicture}
+                          alt={profile?.name}
+                          className="w-24 h-24 rounded-full object-cover"
+                        />
+                      ) : (
+                        <User className="h-12 w-12 text-primary-600" />
+                      )}
+                    </div>
+                    {isEditing && (
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="absolute bottom-0 right-0 bg-primary-600 text-white p-2 rounded-full hover:bg-primary-700 transition-colors shadow-lg"
+                      >
+                        <Camera className="h-4 w-4" />
+                      </button>
                     )}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      className="hidden"
+                    />
                   </div>
                   <h3 className="text-lg font-medium text-gray-900 mb-1">
                     {profile?.name}

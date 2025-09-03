@@ -16,8 +16,9 @@ import PollDetail from './pages/Polls/PollDetail';
 import CreatePoll from './pages/Admin/CreatePoll';
 import Profile from './pages/Profile';
 import VotingHistory from './pages/VotingHistory';
-import Leaderboard from './pages/Leaderboard';
+import Contact from './pages/Contact';
 import Analytics from './components/Admin/Analytics';
+import Results from './pages/Admin/Results';
 import LoadingSpinner from './components/UI/LoadingSpinner';
 
 // Protected Route Component
@@ -84,7 +85,7 @@ function AppContent() {
           <Route path="/" element={<Home />} />
           <Route path="/polls" element={<PollList />} />
           <Route path="/polls/:id" element={<PollDetail />} />
-          <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route path="/contact" element={<Contact />} />
           
           {/* Auth Routes */}
           <Route 
@@ -152,6 +153,14 @@ function AppContent() {
             element={
               <ProtectedRoute adminOnly>
                 <Analytics />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/admin/results" 
+            element={
+              <ProtectedRoute adminOnly>
+                <Results />
               </ProtectedRoute>
             } 
           />

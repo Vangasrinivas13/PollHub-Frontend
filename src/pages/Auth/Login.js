@@ -25,7 +25,12 @@ const Login = () => {
     const result = await login(data.email, data.password);
     
     if (result.success) {
-      navigate('/dashboard');
+      // Check if user is admin and redirect accordingly
+      if (result.user?.role === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/dashboard');
+      }
     } else {
       setError('root', { message: result.error });
     }

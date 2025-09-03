@@ -309,12 +309,12 @@ const Dashboard = () => {
                             {vote.poll.title}
                           </h4>
                           <p className="text-sm text-emerald-600 mb-2 font-medium">
-                            Your choice: {vote.optionText}
+                            You participated in this poll
                           </p>
                           <div className="flex items-center justify-between">
                             <div className="flex items-center text-xs text-gray-500">
                               <Calendar className="h-3 w-3 mr-1" />
-                              {formatDistanceToNow(new Date(vote.votedAt), { addSuffix: true })}
+                              Participated {formatDistanceToNow(new Date(vote.votedAt), { addSuffix: true })}
                             </div>
                             <div className="flex items-center space-x-4">
                               <div className="text-xs text-gray-500">
@@ -413,22 +413,7 @@ const Dashboard = () => {
                       </div>
                     </div>
                   </Link>
-                ) : (
-                  <div className="relative overflow-hidden bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl p-6 text-white">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16"></div>
-                    <div className="relative z-10">
-                      <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center mb-4">
-                        <Trophy className="h-7 w-7 text-white" />
-                      </div>
-                      <h4 className="text-xl font-bold mb-2">Leaderboard</h4>
-                      <p className="text-amber-100 text-sm">See top voters and community rankings</p>
-                      <div className="mt-4 flex items-center text-amber-200 text-sm">
-                        <TrendingUp className="h-4 w-4 mr-1" />
-                        Coming soon
-                      </div>
-                    </div>
-                  </div>
-                )}
+                ) : null}
               </div>
             </div>
           </div>

@@ -1,6 +1,6 @@
-# PollHub Frontend
+# Online Voting System - Frontend
 
-A modern React.js frontend for the PollHub online voting system with real-time updates, comprehensive analytics, and responsive design.
+A modern React.js frontend for the Online Voting System with real-time updates, comprehensive analytics, and responsive design.
 
 ## 🚀 Features
 

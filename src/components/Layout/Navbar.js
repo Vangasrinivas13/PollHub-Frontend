@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useQuery } from 'react-query';
-import { Menu, X, Vote, User, Settings, LogOut, BarChart3, History, TrendingUp } from 'lucide-react';
+import { Menu, X, Bell, User, BarChart3, Vote, History, Settings, LogOut } from 'lucide-react';
 import axios from 'axios';
 import Button from '../UI/Button';
 
@@ -11,6 +11,7 @@ const Navbar = () => {
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showVotingHistory, setShowVotingHistory] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   // Fetch recent voting history for dropdown
   const { data: votingHistory } = useQuery(
@@ -19,10 +20,23 @@ const Navbar = () => {
       params: { limit: 5 }
     }).then(res => res.data),
     {
-      enabled: !!user,
+      enabled: !!user && !isAdmin,
       keepPreviousData: true
     }
   );
+
+  // Use voting history as user activity/notifications
+  const userActivity = {
+    activities: votingHistory?.votes?.map(vote => ({
+      type: 'vote',
+      pollTitle: vote.poll?.title,
+      pollId: vote.poll?._id,
+      description: `You participated in "${vote.poll?.title}"`,
+      createdAt: vote.votedAt,
+      read: true // Mark as read since it's historical data
+    })) || [],
+    unreadCount: votingHistory?.votes?.length || 0 // Show total count of voting activities
+  };
 
   const isActive = (path) => location.pathname === path;
 
@@ -42,7 +56,7 @@ const Navbar = () => {
                 <Vote className="h-6 w-6 text-white" />
               </div>
               <span className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                PollHub
+                Online Voting
               </span>
             </Link>
           </div>
@@ -59,102 +73,196 @@ const Navbar = () => {
             >
               Polls
             </Link>
-            <Link
-              to="/leaderboard"
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                isActive('/leaderboard')
-                  ? 'bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-700 shadow-md'
-                  : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'
-              }`}
-            >
-              Leaderboard
-            </Link>
+
+            {!isAdmin && (
+              <Link
+                to="/contact"
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  isActive('/contact')
+                    ? 'bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-700 shadow-md'
+                    : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'
+                }`}
+              >
+                Contact
+              </Link>
+            )}
 
             {user ? (
               <div className="flex items-center space-x-4">
-                <Link
-                  to="/dashboard"
-                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    isActive('/dashboard')
-                      ? 'bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-700 shadow-md'
-                      : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'
-                  }`}
-                >
-                  Dashboard
-                </Link>
-                
-                {/* Voting History Dropdown */}
-                <div className="relative">
-                  <button
-                    onClick={() => setShowVotingHistory(!showVotingHistory)}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-1 ${
-                      isActive('/voting-history')
-                        ? 'bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-700 shadow-md'
-                        : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'
-                    }`}
-                  >
-                    <History className="h-4 w-4" />
-                    <span>History</span>
-                  </button>
-                  
-                  {showVotingHistory && (
-                    <div className="absolute right-0 mt-2 w-80 bg-white/95 backdrop-blur-sm rounded-xl shadow-2xl border-0 py-2 z-50">
-                      <div className="px-4 py-3 border-b border-gray-100">
-                        <h3 className="font-semibold text-gray-900 flex items-center">
-                          <History className="h-4 w-4 mr-2 text-indigo-600" />
-                          Recent Voting Activity
-                        </h3>
-                      </div>
+                {!isAdmin && (
+                  <>
+                    <Link
+                      to="/dashboard"
+                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                        isActive('/dashboard')
+                          ? 'bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-700 shadow-md'
+                          : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'
+                      }`}
+                    >
+                      Dashboard
+                    </Link>
+                    
+                    {/* Voting History Dropdown */}
+                    <div className="relative">
+                      <button
+                        onClick={() => setShowVotingHistory(!showVotingHistory)}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-1 ${
+                          isActive('/voting-history')
+                            ? 'bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-700 shadow-md'
+                            : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'
+                        }`}
+                      >
+                        <History className="h-4 w-4" />
+                        <span>History</span>
+                      </button>
                       
-                      {votingHistory?.votes?.length > 0 ? (
-                        <div className="max-h-64 overflow-y-auto">
-                          {votingHistory.votes.filter(vote => vote.poll && vote.poll._id).slice(0, 5).map((vote, index) => (
+                      {showVotingHistory && (
+                        <div className="absolute right-0 mt-2 w-80 bg-white/95 backdrop-blur-sm rounded-xl shadow-2xl border-0 py-2 z-50">
+                          <div className="px-4 py-3 border-b border-gray-100">
+                            <h3 className="font-semibold text-gray-900 flex items-center">
+                              <History className="h-4 w-4 mr-2 text-indigo-600" />
+                              Recent Voting Activity
+                            </h3>
+                          </div>
+                          
+                          {votingHistory?.votes?.length > 0 ? (
+                            <div className="max-h-64 overflow-y-auto">
+                              {votingHistory.votes.filter(vote => vote.poll && vote.poll._id).slice(0, 5).map((vote, index) => (
+                                <Link
+                                  key={vote._id}
+                                  to={`/polls/${vote.poll?._id || '#'}`}
+                                  className="block px-4 py-3 hover:bg-indigo-50 transition-colors border-b border-gray-50 last:border-b-0"
+                                  onClick={() => setShowVotingHistory(false)}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex-1">
+                                      <p className="text-sm font-medium text-gray-900 truncate">
+                                        {vote.poll?.title || 'Poll not available'}
+                                      </p>
+                                      <p className="text-xs text-gray-500 mt-1">
+                                        Participated in this poll
+                                      </p>
+                                    </div>
+                                    <div className="ml-2 flex items-center">
+                                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-green-100 to-green-200 text-green-800">
+                                        ✓ Voted
+                                      </span>
+                                    </div>
+                                  </div>
+                                </Link>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="px-4 py-6 text-center">
+                              <div className="bg-gradient-to-r from-gray-100 to-gray-200 rounded-full p-3 w-12 h-12 mx-auto mb-3 flex items-center justify-center">
+                                <History className="h-6 w-6 text-gray-500" />
+                              </div>
+                              <p className="text-sm text-gray-500">No voting history yet</p>
+                            </div>
+                          )}
+                          
+                          <div className="px-4 py-3 border-t border-gray-100">
                             <Link
-                              key={vote._id}
-                              to={`/polls/${vote.poll?._id || '#'}`}
-                              className="block px-4 py-3 hover:bg-indigo-50 transition-colors border-b border-gray-50 last:border-b-0"
+                              to="/voting-history"
+                              className="flex items-center justify-center w-full px-3 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
                               onClick={() => setShowVotingHistory(false)}
                             >
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1">
-                                  <p className="text-sm font-medium text-gray-900 truncate">
-                                    {vote.poll?.title || 'Poll not available'}
-                                  </p>
-                                  <p className="text-xs text-gray-500 mt-1">
-                                    Voted: {vote.poll?.options?.[vote.optionIndex]?.text || 'Option not available'}
-                                  </p>
-                                </div>
-                                <div className="ml-2 flex items-center">
-                                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-green-100 to-green-200 text-green-800">
-                                    ✓ Voted
-                                  </span>
-                                </div>
-                              </div>
+                              <BarChart3 className="h-4 w-4 mr-2" />
+                              View Full History
                             </Link>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="px-4 py-6 text-center">
-                          <div className="bg-gradient-to-r from-gray-100 to-gray-200 rounded-full p-3 w-12 h-12 mx-auto mb-3 flex items-center justify-center">
-                            <History className="h-6 w-6 text-gray-500" />
                           </div>
-                          <p className="text-sm text-gray-500">No voting history yet</p>
                         </div>
                       )}
-                      
-                      <div className="px-4 py-3 border-t border-gray-100">
-                        <Link
-                          to="/voting-history"
-                          className="flex items-center justify-center w-full px-3 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                          onClick={() => setShowVotingHistory(false)}
-                        >
-                          <BarChart3 className="h-4 w-4 mr-2" />
-                          View Full History
-                        </Link>
-                      </div>
                     </div>
-                  )}
-                </div>
+                  </>
+                )}
+
+                {/* Notifications for normal users */}
+                {!isAdmin && (
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowNotifications(!showNotifications)}
+                      className="relative px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-gray-700 hover:bg-indigo-50 hover:text-indigo-600"
+                    >
+                      <Bell className="h-5 w-5" />
+                      {userActivity?.unreadCount > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                          {userActivity.unreadCount > 9 ? '9+' : userActivity.unreadCount}
+                        </span>
+                      )}
+                    </button>
+                    
+                    {showNotifications && (
+                      <div className="absolute right-0 mt-2 w-96 bg-white/95 backdrop-blur-sm rounded-xl shadow-2xl border-0 py-2 z-50">
+                        <div className="px-4 py-3 border-b border-gray-100">
+                          <h3 className="font-semibold text-gray-900 flex items-center justify-between">
+                            <div className="flex items-center">
+                              <Bell className="h-4 w-4 mr-2 text-indigo-600" />
+                              Your Activity
+                            </div>
+                            {userActivity?.activities?.length > 0 && (
+                              <span className="text-xs text-indigo-600 font-medium">
+                                {userActivity.activities.length} activities
+                              </span>
+                            )}
+                          </h3>
+                        </div>
+                        
+                        {userActivity?.activities?.length > 0 ? (
+                          <div className="max-h-80 overflow-y-auto">
+                            {userActivity.activities.map((activity, index) => (
+                              <Link
+                                key={index}
+                                to={`/polls/${activity.pollId}`}
+                                className="block px-4 py-3 hover:bg-indigo-50 transition-colors border-b border-gray-50 last:border-b-0"
+                                onClick={() => setShowNotifications(false)}
+                              >
+                                <div className="flex items-start space-x-3">
+                                  <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-green-100 text-green-600">
+                                    <Vote className="h-4 w-4" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium text-gray-900">
+                                      Voted on "{activity.pollTitle}"
+                                    </p>
+                                    <p className="text-sm text-gray-600">
+                                      You participated in this poll
+                                    </p>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                      {new Date(activity.createdAt).toLocaleDateString()} at {new Date(activity.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                    </p>
+                                  </div>
+                                  <div className="flex-shrink-0">
+                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                      ✓ Voted
+                                    </span>
+                                  </div>
+                                </div>
+                              </Link>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="px-4 py-8 text-center">
+                            <div className="bg-gradient-to-r from-gray-100 to-gray-200 rounded-full p-3 w-12 h-12 mx-auto mb-3 flex items-center justify-center">
+                              <Bell className="h-6 w-6 text-gray-500" />
+                            </div>
+                            <p className="text-sm text-gray-500">No recent activity</p>
+                            <p className="text-xs text-gray-400 mt-1">Your voting activity will appear here</p>
+                          </div>
+                        )}
+                        
+                        <div className="px-4 py-3 border-t border-gray-100">
+                          <button
+                            onClick={() => setShowNotifications(false)}
+                            className="flex items-center justify-center w-full px-3 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                          >
+                            Close
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
                 
                 {isAdmin && (
                   <>
@@ -176,8 +284,19 @@ const Navbar = () => {
                           : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600'
                       }`}
                     >
-                      <TrendingUp className="h-4 w-4" />
+                      <BarChart3 className="h-4 w-4" />
                       <span>Analytics</span>
+                    </Link>
+                    <Link
+                      to="/admin/results"
+                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-1 ${
+                        isActive('/admin/results')
+                          ? 'bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 shadow-md'
+                          : 'text-gray-700 hover:bg-green-50 hover:text-green-600'
+                      }`}
+                    >
+                      <Vote className="h-4 w-4" />
+                      <span>Results</span>
                     </Link>
                   </>
                 )}
@@ -202,13 +321,15 @@ const Navbar = () => {
                       <Settings className="h-4 w-4 mr-3 text-gray-400" />
                       Profile Settings
                     </Link>
-                    <Link
-                      to="/voting-history"
-                      className="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
-                    >
-                      <BarChart3 className="h-4 w-4 mr-3 text-gray-400" />
-                      Full Voting History
-                    </Link>
+                    {!isAdmin && (
+                      <Link
+                        to="/voting-history"
+                        className="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                      >
+                        <BarChart3 className="h-4 w-4 mr-3 text-gray-400" />
+                        Full Voting History
+                      </Link>
+                    )}
                     <div className="border-t border-gray-100 mt-2 pt-2">
                       <button
                         onClick={handleLogout}
@@ -257,23 +378,28 @@ const Navbar = () => {
               >
                 Polls
               </Link>
-              <Link
-                to="/leaderboard"
-                className="text-sm font-medium text-gray-700 hover:text-primary-600"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Leaderboard
-              </Link>
+
+              {!isAdmin && (
+                <Link
+                  to="/contact"
+                  className="text-sm font-medium text-gray-700 hover:text-primary-600"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Contact
+                </Link>
+              )}
 
               {user ? (
                 <>
-                  <Link
-                    to="/dashboard"
-                    className="text-sm font-medium text-gray-700 hover:text-primary-600"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    Dashboard
-                  </Link>
+                  {!isAdmin && (
+                    <Link
+                      to="/dashboard"
+                      className="text-sm font-medium text-gray-700 hover:text-primary-600"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      Dashboard
+                    </Link>
+                  )}
                   
                   {isAdmin && (
                     <>
@@ -291,6 +417,13 @@ const Navbar = () => {
                       >
                         Analytics
                       </Link>
+                      <Link
+                        to="/admin/results"
+                        className="text-sm font-medium text-gray-700 hover:text-primary-600"
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        Results
+                      </Link>
                     </>
                   )}
 
@@ -301,13 +434,15 @@ const Navbar = () => {
                   >
                     Profile
                   </Link>
-                  <Link
-                    to="/voting-history"
-                    className="text-sm font-medium text-gray-700 hover:text-primary-600"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    Voting History
-                  </Link>
+                  {!isAdmin && (
+                    <Link
+                      to="/voting-history"
+                      className="text-sm font-medium text-gray-700 hover:text-primary-600"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      Voting History
+                    </Link>
+                  )}
                   <button
                     onClick={handleLogout}
                     className="text-left text-sm font-medium text-gray-700 hover:text-primary-600"

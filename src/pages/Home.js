@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useQuery } from 'react-query';
-import { Vote, Users, BarChart3, Shield, Clock, Award, Calendar, Timer } from 'lucide-react';
+import { Vote, Users, BarChart3, Shield, Clock, Calendar, Timer } from 'lucide-react';
 import Button from '../components/UI/Button';
 import Card from '../components/UI/Card';
 import axios from 'axios';
@@ -73,11 +73,6 @@ const Home = () => {
       icon: <Clock className="h-8 w-8 text-primary-600" />,
       title: 'Scheduled Polls',
       description: 'Create polls with custom start and end times'
-    },
-    {
-      icon: <Award className="h-8 w-8 text-primary-600" />,
-      title: 'Leaderboards',
-      description: 'Track your voting activity and compete with others'
     }
   ];
 
@@ -88,7 +83,7 @@ const Home = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
           <div className="text-center">
             <h1 className="text-4xl md:text-6xl font-bold mb-6">
-              Welcome to <span className="text-primary-200">PollHub</span>
+              Welcome to <span className="text-primary-200">Online Voting System</span>
             </h1>
             <p className="text-xl md:text-2xl mb-8 text-primary-100 max-w-3xl mx-auto">
               The modern online voting system that makes creating and participating in polls simple, secure, and engaging.
@@ -114,6 +109,67 @@ const Home = () => {
                   </Link>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* News Ticker Section */}
+      <section className="bg-gradient-to-r from-red-600 to-orange-600 text-white py-3 overflow-hidden">
+        <div className="relative">
+          <div className="flex animate-scroll whitespace-nowrap">
+            <div className="flex items-center space-x-12 text-sm font-medium">
+              <span className="flex items-center">
+                <span className="bg-white text-red-600 px-2 py-1 rounded-full text-xs font-bold mr-3">NEWS</span>
+                📢 Voters must be at least 18 years old to participate in all polls
+              </span>
+              <span className="flex items-center">
+                🆔 Valid government ID required for account verification
+              </span>
+              <span className="flex items-center">
+                ⏰ Poll voting closes automatically at the scheduled end time
+              </span>
+              <span className="flex items-center">
+                🔒 Your vote is completely anonymous and secure
+              </span>
+              <span className="flex items-center">
+                📱 One vote per person per poll - multiple voting is prohibited
+              </span>
+              <span className="flex items-center">
+                ✅ Account verification required before participating in polls
+              </span>
+              <span className="flex items-center">
+                🚫 Fake accounts and duplicate registrations will be banned
+              </span>
+              <span className="flex items-center">
+                📊 Poll results are published after voting period ends
+              </span>
+              {/* Duplicate for seamless scrolling */}
+              <span className="flex items-center">
+                <span className="bg-white text-red-600 px-2 py-1 rounded-full text-xs font-bold mr-3">NEWS</span>
+                📢 Voters must be at least 18 years old to participate in all polls
+              </span>
+              <span className="flex items-center">
+                🆔 Valid government ID required for account verification
+              </span>
+              <span className="flex items-center">
+                ⏰ Poll voting closes automatically at the scheduled end time
+              </span>
+              <span className="flex items-center">
+                🔒 Your vote is completely anonymous and secure
+              </span>
+              <span className="flex items-center">
+                📱 One vote per person per poll - multiple voting is prohibited
+              </span>
+              <span className="flex items-center">
+                ✅ Account verification required before participating in polls
+              </span>
+              <span className="flex items-center">
+                🚫 Fake accounts and duplicate registrations will be banned
+              </span>
+              <span className="flex items-center">
+                📊 Poll results are published after voting period ends
+              </span>
             </div>
           </div>
         </div>
@@ -201,10 +257,10 @@ const Home = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Why Choose PollHub?
+              Why Choose Our Platform?
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Discover the features that make PollHub the best choice for online voting
+              Discover the features that make our platform the best choice for online voting
             </p>
           </div>
 
@@ -249,7 +305,7 @@ const Home = () => {
             Ready to Get Started?
           </h2>
           <p className="text-xl text-primary-100 mb-8 max-w-2xl mx-auto">
-            Join thousands of users who trust PollHub for their voting needs
+            Join thousands of users who trust our platform for their voting needs
           </p>
           {!user && (
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
