@@ -15,7 +15,7 @@ export const useAuth = () => {
 // Configure axios defaults
 const isProduction = process.env.NODE_ENV === 'production';
 const apiUrl = isProduction 
-  ? 'https://online-voting-system-backend.railway.app/api' 
+  ? 'https://pollhub-backend-production.up.railway.app/api' 
   : 'http://localhost:5000/api';
 
 console.log('Using API URL:', apiUrl);
